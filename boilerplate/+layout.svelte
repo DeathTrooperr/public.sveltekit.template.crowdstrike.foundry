@@ -1,4 +1,5 @@
 <script lang="ts">
+    import './app.css';
     import { onMount } from 'svelte';
     import { beforeNavigate } from '$app/navigation';
     import { initFalcon, getFalcon, ready, falconError } from '$lib/falcon.svelte';

@@ -45,6 +45,10 @@ The layout performs three vital roles:
 1.  **Initialization**: Calls `initFalcon()` on mount to establish the handshake with the Foundry parent frame.
 2.  **Navigation Interception**: Intercepts all SvelteKit navigation and routes it through `falcon.navigation.navigateTo()`. This keeps the Foundry shell and your app's router in sync.
 3.  **Render Gating**: Prevents your pages from rendering until the SDK connection is established, ensuring `getFalcon()` is safe to use in any child component.
+4.  **Loading State**: Uses `static/loading.gif` to provide visual feedback while the SDK handshake is in progress.
+
+### 7. Add Assets
+Copy `static/loading.gif` to your project's `static/` folder. This image is required by the root layout to provide a loading state while the Foundry JS SDK initializes.
 
 ---
 
