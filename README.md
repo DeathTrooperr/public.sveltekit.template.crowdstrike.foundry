@@ -14,6 +14,8 @@ npm create svelte@latest my-foundry-app
 cd my-foundry-app
 ```
 
+*Note: If using TypeScript, ensure your `tsconfig.json` sets `"moduleResolution": "bundler"` (or higher) to correctly resolve Svelte modules.*
+
 ### 2. Install the Foundry Adapter
 Copy the `adapter-foundry/` directory from this repo to your project root, then install it as a development dependency:
 ```bash

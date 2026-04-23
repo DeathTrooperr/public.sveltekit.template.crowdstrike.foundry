@@ -9,23 +9,20 @@
 
 import FalconApi from '@crowdstrike/foundry-js';
 
-export let ready = $state(false);
-export let falconError = $state<string | null>(null);
-
-let _client: FalconApi | null = null;
+export const falcon = $state({
+    ready: false,
+    error: null as string | null,
+    api: null as FalconApi | null,
+});
 
 export async function initFalcon(): Promise<void> {
     try {
-        _client = new FalconApi();
-        await _client.connect();
-        ready = true;
+        falcon.api = new FalconApi();
+        const connected = await falcon.api.connect();
+        if(!connected) throw new Error('Failed to connect to Falcon');
+        falcon.ready = true;
     } catch (e) {
-        falconError = e instanceof Error ? e.message : String(e);
+        falcon.error = e instanceof Error ? e.message : String(e);
         console.error('[falcon] init failed:', e);
     }
-}
-
-export function getFalcon(): FalconApi {
-    if (!_client) throw new Error('[falcon] getFalcon() called before initFalcon() resolved');
-    return _client;
 }

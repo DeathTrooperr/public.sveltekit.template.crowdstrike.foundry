@@ -26,6 +26,8 @@ npm install --save-dev adapter-falcon
 pnpm add -D adapter-falcon
 ```
 
+*Note: If using TypeScript, ensure your `tsconfig.json` sets `"moduleResolution": "bundler"` to correctly resolve Svelte modules.*
+
 ## Usage
 
 ```js

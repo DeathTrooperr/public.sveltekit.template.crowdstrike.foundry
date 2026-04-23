@@ -2,27 +2,27 @@
     import './app.css';
     import { onMount } from 'svelte';
     import { beforeNavigate } from '$app/navigation';
-    import { initFalcon, getFalcon, ready, falconError } from '$lib/falcon.svelte';
+    import { initFalcon, falcon } from '$lib/falcon.svelte';
 
     const { children } = $props();
+    const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
     beforeNavigate(({ to, cancel, willUnload, type }) => {
-        if (type === 'popstate' || !ready) return;
+        if (isDev || type === 'popstate' || !falcon.ready) return;
 
         cancel();
 
         if (willUnload || !to) return;
 
-        const falcon = getFalcon();
         const isInternal = to.url.origin === location.origin;
 
         if (isInternal) {
-            falcon.navigation.navigateTo({
+            falcon.api?.navigation.navigateTo({
                 path: to.url.hash.replace('#', '') || '/',
                 type: 'internal',
             });
         } else {
-            falcon.navigation.navigateTo({
+            falcon.api?.navigation.navigateTo({
                 path: to.url.href,
                 target: '_blank',
             });
@@ -30,23 +30,21 @@
     });
 
     onMount(async () => {
+        if (isDev) return;
         await initFalcon();
     });
 </script>
 
 <div class="theme-dark root">
-    {#if falconError}
-        <div class="splash">
-            <img src="splash-image" alt="App logo" class="splash-image" />
-            <p class="splash-error">{falconError}</p>
-        </div>
-    {:else if !ready}
+    {#if !isDev && falcon.error}
         <div class="splash">
             <img src="./loading.gif" alt="App logo" class="splash-image" />
-            <p class="splash-label">Loading Foundry App</p>
-            <div class="splash-spinner" aria-label="Loading...">
-                <div class="spinner-ring"></div>
-            </div>
+            <p class="splash-error">{falcon.error}</p>
+        </div>
+    {:else if !isDev && !falcon.ready}
+        <div class="splash">
+            <img src="./loading.gif" alt="App logo" class="splash-image" />
+            <p class="splash-label">Loading Foundry App<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></p>
         </div>
     {:else}
         {@render children()}
@@ -54,9 +52,14 @@
 </div>
 
 <style>
+    :global(html, body) {
+        height: 100%;
+        margin: 0;
+    }
+
     .root {
-        min-height: 100vh;
-        background-color: var(--surface-base);
+        height: 100%;
+        background-color: #343337;
         color: var(--text-and-icons);
         font-family: Calibre, sans-serif;
     }
@@ -67,43 +70,48 @@
         align-items: center;
         justify-content: center;
         gap: 1.5rem;
-        min-height: 100vh;
-        background-color: var(--surface-base);
+        min-height: 100%;
+        background-color: #343337;
+        position: relative;
+        z-index: 100;
     }
 
     .splash-image {
-        width: 200px;
+        width: 150px;
         height: auto;
     }
 
-    .splash-label {
+    .splash-label,
+    .splash-error {
         font-size: 1rem;
-        font-weight: 500;
+        font-family: Monaco, monospace;
+        font-weight: bold;
+    }
+
+    .splash-label {
         color: var(--body-and-labels);
-        letter-spacing: 0.02em;
     }
 
     .splash-error {
-        font-size: 0.875rem;
         color: var(--critical);
-        font-family: Monaco, monospace;
     }
 
-    .splash-spinner {
-        width: 2rem;
-        height: 2rem;
+    .dot {
+        animation: blink 1.4s infinite;
+        animation-fill-mode: both;
     }
 
-    .spinner-ring {
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        border: 2px solid var(--border-reg);
-        border-top-color: var(--brand);
-        animation: spin 0.7s linear infinite;
+    .dot:nth-child(2) {
+        animation-delay: 0.2s;
     }
 
-    @keyframes spin {
-        to { transform: rotate(360deg); }
+    .dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes blink {
+        0%   { opacity: 0.2; }
+        20%  { opacity: 1;   }
+        100% { opacity: 0.2; }
     }
 </style>
