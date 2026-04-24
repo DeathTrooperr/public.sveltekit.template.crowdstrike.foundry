@@ -1,4 +1,4 @@
-import adapter from 'adapter-falcon';
+import adapter from 'adapter-foundry';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -11,8 +11,8 @@ const config = {
 
         router: {
             // Hash routing is required for the Foundry iframe sandbox. Foundry
-            // controls the pathname portion of the URL (UUID prefix), so
-            // SvelteKit must own only the hash fragment for its routing.
+            // controls the URL pathname and query parameters (UUID and path),
+            // so SvelteKit must own only the hash fragment for its routing.
             type: 'hash',
         },
     },

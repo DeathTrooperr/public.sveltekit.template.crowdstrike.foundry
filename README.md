@@ -1,5 +1,7 @@
 # CrowdStrike Foundry SvelteKit Template
 
+**Note: This repository now contains boilerplate code. The custom adapter is available as an npm package: [adapter-foundry](https://www.npmjs.com/package/adapter-foundry).**
+
 This repository provides a SvelteKit 2 / Svelte 5 template for building UI extensions inside CrowdStrike Falcon Foundry. It handles asset path resolution, hash routing, and SDK initialization for the Foundry sandboxed iframe environment.
 
 ## Implementation Guide
@@ -17,12 +19,11 @@ cd my-foundry-app
 *Note: If using TypeScript, ensure your `tsconfig.json` sets `"moduleResolution": "bundler"` (or higher) to correctly resolve Svelte modules.*
 
 ### 2. Install the Foundry Adapter
-Copy the `adapter-foundry/` directory from this repo to your project root, then install it as a development dependency:
+The adapter is available as an npm package:
+
 ```bash
-# Copy the adapter-foundry folder to your project
-npm install --save-dev ./adapter-foundry
+npm install --save-dev adapter-foundry
 ```
-*Note: The adapter is named `adapter-falcon` in `package.json` for consistent importing.*
 
 ### 3. Install the Foundry SDK
 The template requires the official CrowdStrike Foundry JS SDK:
@@ -52,17 +53,22 @@ The layout performs three vital roles:
 ### 7. Add Assets
 Copy `static/loading.gif` to your project's `static/` folder. This image is required by the root layout to provide a loading state while the Foundry JS SDK initializes.
 
+### 8. Add a Default Page (Optional)
+Copy `boilerplate/+page.svelte` to `src/routes/+page.svelte`. 
+
+This provides a functional example of a Foundry-style Query Editor with a sidebar for selection. It demonstrates Svelte 5 reactivity for handling UI state within a Foundry application.
+
 ---
 
 ## Key Components: The "What" and the "Why"
 
-### 1. Foundry Adapter (`adapter-falcon`)
+### 1. Foundry Adapter (`adapter-foundry`)
 - **What**: A custom adapter that post-processes the standard SvelteKit static build.
-- **Why**: Standard SvelteKit static adapters produce absolute paths (e.g., `src="/_app/..."`). In Foundry's sandboxed environment, your app is served from a unique UUID-prefixed path like `/foundry/apps/<uuid>/`. Absolute paths resolve to the Foundry domain root (`falcon.crowdstrike.com/_app/...`) and result in 404s. This adapter rewrites every `/_app/` reference to `./_app/` so that assets always resolve relative to your app's index page.
+- **Why**: Standard SvelteKit static adapters produce absolute paths (e.g., `src="/_app/..."`). In Foundry's sandboxed environment, your app is accessed via a URL pattern like `/foundry/page/<uuid>?path=<path>`. Absolute paths resolve to the Foundry domain root (`falcon.crowdstrike.com/_app/...`) and result in 404s. This adapter rewrites every `/_app/` reference to `./_app/` so that assets always resolve relative to your app's index page.
 
 ### 2. Hash-Based Routing (`svelte.config.js`)
 - **What**: Configures SvelteKit to use the URL hash (`#`) for its internal router.
-- **Why**: Your app lives inside an iframe where the parent (Foundry) controls the URL pathname. SvelteKit cannot reliably manipulate the pathname without conflicting with the parent shell or causing full page reloads. Using hash routing allows SvelteKit to own the `#fragment` while leaving the pathname to Foundry, which is the required architecture for Foundry UI extensions.
+- **Why**: Your app lives inside an iframe where the parent (Foundry) controls the top-level URL (pathname and query parameters). SvelteKit cannot reliably manipulate the pathname without conflicting with the parent shell or causing full page reloads. Using hash routing allows SvelteKit to own the `#fragment` while leaving the rest of the URL to Foundry, which is the required architecture for Foundry UI extensions.
 
 ### 3. Global SDK Singleton (`falcon.svelte.ts`)
 - **What**: A centralized handler for the `@crowdstrike/foundry-js` SDK using Svelte 5 `$state` runes.
@@ -74,8 +80,8 @@ Copy `static/loading.gif` to your project's `static/` folder. This image is requ
 - **The Navigation Loop**: 
     1. User clicks a link in your app.
     2. `beforeNavigate` catches it, cancels the default SvelteKit navigation, and calls the Foundry SDK.
-    3. Foundry updates the top-level browser URL hash.
-    4. Foundry propagates that hash change back down to the iframe.
+    3. Foundry updates the top-level browser URL (e.g., updating the `?path=` query parameter).
+    4. Foundry propagates that change back down to the iframe's URL hash.
     5. A `popstate` event fires inside your app.
     6. Our `beforeNavigate` code sees the `type === 'popstate'` and **ignores it**, allowing SvelteKit's router to finally render the new page. This guard is critical to prevent infinite navigation loops.
 
