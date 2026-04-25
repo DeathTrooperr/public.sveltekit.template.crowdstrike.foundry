@@ -1,29 +1,34 @@
 <script lang="ts">
     import './app.css';
     import { onMount } from 'svelte';
-    import { beforeNavigate } from '$app/navigation';
+    import { beforeNavigate, goto } from '$app/navigation';
     import { initFalcon, falcon } from '$lib/falcon.svelte';
 
     const { children } = $props();
     const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
     beforeNavigate(({ to, cancel, willUnload, type }) => {
+        if(!to) return;
+        const isInternal = to.url.hostname.endsWith('.crowdstrike.com') || to.url.hostname === 'crowdstrike.com';
+        // Allows for internal nav in local dev environments
+        const href = isInternal && isDev ? (to.url.hash === "" ? `/#${to.url.pathname}` : to.url.href) : to.url.href;
+        if (href != to.url.href) {
+            cancel();
+            // eslint-disable-next-line svelte/no-navigation-without-resolve
+            goto(href);
+        }
         if (isDev || type === 'popstate' || !falcon.ready) return;
 
         cancel();
 
-        if (willUnload || !to) return;
-
-        const isInternal = to.url.origin === location.origin;
-
         if (isInternal) {
             falcon.api?.navigation.navigateTo({
-                path: to.url.hash.replace('#', '') || '/',
+                path: to.url.pathname,
                 type: 'internal',
             });
         } else {
             falcon.api?.navigation.navigateTo({
-                path: to.url.href,
+                path: href,
                 target: '_blank',
             });
         }
