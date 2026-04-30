@@ -46,7 +46,7 @@ Copy `boilerplate/+layout.svelte` to `src/routes/+layout.svelte`.
 
 The layout performs three vital roles:
 1.  **Initialization**: Calls `initFalcon()` on mount to establish the handshake with the Foundry parent frame.
-2.  **Navigation Interception**: Intercepts all SvelteKit navigation and routes it through `falcon.navigation.navigateTo()`. This keeps the Foundry shell and your app's router in sync.
+2.  **Navigation Interception**: Intercepts all SvelteKit navigation and routes it through `falcon.navigation.navigateTo()`. It uses `/falcon/` and `/internal/` path prefixes to distinguish between navigation types.
 3.  **Render Gating**: Prevents your pages from rendering until the SDK connection is established, ensuring `getFalcon()` is safe to use in any child component.
 4.  **Loading State**: Uses `static/loading.gif` to provide visual feedback while the SDK handshake is in progress.
 
@@ -68,28 +68,46 @@ This provides a functional example of a Foundry-style Query Editor with a sideba
 
 ### 2. Hash-Based Routing (`svelte.config.js`)
 - **What**: Configures SvelteKit to use the URL hash (`#`) for its internal router.
-- **Why**: Your app lives inside an iframe where the parent (Foundry) controls the top-level URL (pathname and query parameters). SvelteKit cannot reliably manipulate the pathname without conflicting with the parent shell or causing full page reloads. Using hash routing allows SvelteKit to own the `#fragment` while leaving the rest of the URL to Foundry, which is the required architecture for Foundry UI extensions.
+- **Why**: Your app lives inside an iframe where the parent (Foundry) controls the top-level URL (pathname and query parameters). SvelteKit cannot reliably manipulate the pathname without conflicting with the parent shell or causing full page reloads. Using hash routing allows SvelteKit to own the `#fragment` while leaving the rest of the URL to Foundry.
+- **Initial Load Only**: While hash-based routing is enabled, it is primarily there to handle initial page loads (deep-linking). Beyond the initial load, all navigation must be routed through the Falcon Navigation API to keep the parent frame in sync.
 
 ### 3. Global SDK Singleton (`falcon.svelte.ts`)
 - **What**: A centralized handler for the `@crowdstrike/foundry-js` SDK using Svelte 5 `$state` runes.
 - **Why**: The SDK connection is a global resource. By placing it in a `.svelte.ts` file, we create a reactive singleton. Any component can import `ready` or `getFalcon()` and automatically re-render when the connection status changes. This avoids the need for complex context providers and ensures the SDK is available even in non-component logic like SvelteKit `load` functions.
 
 ### 4. Navigation Synchronization (`+layout.svelte`)
-- **What**: Uses the `beforeNavigate` hook to intercept all internal link clicks.
-- **Why**: Because Foundry wraps your app, standard browser navigation is broken. We must explicitly communicate every navigation event to the Foundry parent frame using `falcon.navigation.navigateTo()`.
-- **The Navigation Loop**: 
-    1. User clicks a link in your app.
-    2. `beforeNavigate` catches it, cancels the default SvelteKit navigation, and calls the Foundry SDK.
-    3. Foundry updates the top-level browser URL (e.g., updating the `?path=` query parameter).
-    4. Foundry propagates that change back down to the iframe's URL hash.
-    5. A `popstate` event fires inside your app.
-    6. Our `beforeNavigate` code sees the `type === 'popstate'` and **ignores it**, allowing SvelteKit's router to finally render the new page. This guard is critical to prevent infinite navigation loops.
+- **What**: Uses the `beforeNavigate` hook to intercept all internal link clicks and route them through the Falcon SDK.
+- **Why**: Because Foundry wraps your app in a sandboxed iframe, standard browser navigation must be communicated to the parent frame to keep the URL in sync and prevent broken navigation. This ensures that while SvelteKit uses hash-routing for the initial load, the Falcon Navigation API remains the source of truth for all active navigation.
+- **The Prefix System**:
+    - **`/internal/*`**: Used for navigation within your application. In production, this calls `navigateTo` with `type: 'internal'`. In local dev, it is automatically converted to hash-based routing (`/#/*`).
+    - **`/falcon/*`**: Used for navigation to other areas of the Falcon console. In production, this calls `navigateTo` with `type: 'falcon'`.
+    - **External Links**: Any other link (e.g., `https://google.com`) is automatically intercepted and opened in a new tab via the Falcon SDK (using `target: '_blank'` internally).
 
 ### 5. Render Gating (`+layout.svelte`)
 - **What**: A conditional `{#if ready}` block in the root layout.
 - **Why**: The Foundry SDK must perform an asynchronous handshake with the parent frame before it can be used. By gating the entire application render until `ready` is true, we guarantee that any child component can call `getFalcon()` immediately in its initialization logic without checking for `null` or handling "unconnected" states.
 
 ---
+
+## Routing & Linking
+
+To ensure navigation works correctly both in local development and within the Falcon console, follow these linking conventions. Note that while hash-based routing is enabled to handle initial page loads, all subsequent navigation must go through the Falcon Navigation API (via the prefix system below) to keep the browser URL in sync.
+
+- **Internal Links**: Use the `/internal/` prefix for all links within your application.
+  ```html
+  <a href="/internal/my-page">Go to My Page</a>
+  ```
+- **Falcon Links**: Use the `/falcon/` prefix to navigate to other pages in the Falcon console.
+  ```html
+  <a href="/falcon/investigate/events">View Events</a>
+  ```
+- **External Links**: Standard external URLs will automatically open in a new tab via the Falcon SDK. **Do not use `target="_blank"` on these links.**
+  ```html
+  <a href="https://docs.crowdstrike.com">Documentation</a>
+  ```
+
+> [!IMPORTANT]  
+> **Avoid `target="_blank"`**: Do not add `target="_blank"` to your links. The template's navigation handler automatically manages opening external links in new tabs using the Falcon SDK. Manually adding `target="_blank"` will bypass this handler and break external routing within the Falcon console.
 
 ## Deployment
 
